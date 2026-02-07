@@ -18,11 +18,12 @@ class handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
-            self.wfile.write(b'{"status":"error","message":"Missing TWELVE_DATA_API_KEY in Vercel env vars"}')
+            self.wfile.write(b'{"status":"error","message":"Missing TWELVE_DATA_API_KEY"}')
             return
 
         qs = parse_qs(urlparse(self.path).query)
         symbol = (qs.get("symbol", [""])[0] or "").strip().upper()
+
         if not symbol:
             self.send_response(400)
             self.send_header("Content-Type", "application/json")
@@ -36,17 +37,16 @@ class handler(BaseHTTPRequestHandler):
         try:
             req = Request(url, headers={"Accept": "application/json"})
             with urlopen(req, timeout=10) as r:
-                body = r.read()  # JSON bytes from Twelve Data
+                body = r.read()
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(body)
-
         except Exception:
             self.send_response(502)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
-            self.wfile.write(b'{"status":"error","message":"Failed to reach Twelve Data"}')
+            self.wfile.write(b'{"status":"error","message":"Upstream request failed"}')
