@@ -1,4 +1,4 @@
-const API_BASE = "REPLACE_WITH_YOUR_VERCEL_URL"; // e.g. https://my-project.vercel.app
+const API_BASE = "https://stock-price-site-nine.vercel.app"; // e.g. https://my-project.vercel.app
 
 const form = document.getElementById("form");
 const output = document.getElementById("output");
