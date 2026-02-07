@@ -30,15 +30,19 @@ ${data.message || JSON.stringify(data, null, 2)}
     let total = 0;
 
     let html = `
-      <table border="1" cellpadding="6" cellspacing="0">
+      <table style="
+        border-collapse: collapse;
+        min-width: 700px;
+        font-family: Arial, sans-serif;
+      ">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Symbol</th>
-            <th>Price</th>
-            <th>Currency</th>
-            <th>Quantity</th>
-            <th>Value</th>
+            <th style="text-align:left; padding:10px 14px; border-bottom:2px solid #ccc;">Name</th>
+            <th style="text-align:left; padding:10px 14px; border-bottom:2px solid #ccc;">Symbol</th>
+            <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Price</th>
+            <th style="text-align:left; padding:10px 14px; border-bottom:2px solid #ccc;">Currency</th>
+            <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Quantity</th>
+            <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Value</th>
           </tr>
         </thead>
         <tbody>
@@ -54,12 +58,12 @@ ${data.message || JSON.stringify(data, null, 2)}
 
       html += `
         <tr>
-          <td>${r.name || ""}</td>
-          <td>${r.symbol}</td>
-          <td>${price.toFixed(2)}</td>
-          <td>${ccy}</td>
-          <td>${qty}</td>
-          <td>${value.toFixed(2)}</td>
+          <td style="text-align:left; padding:8px 14px;">${r.name || ""}</td>
+          <td style="text-align:left; padding:8px 14px;">${r.symbol}</td>
+          <td style="text-align:right; padding:8px 14px;">${price.toFixed(2)}</td>
+          <td style="text-align:left; padding:8px 14px;">${ccy}</td>
+          <td style="text-align:right; padding:8px 14px;">${qty}</td>
+          <td style="text-align:right; padding:8px 14px;">${value.toFixed(2)}</td>
         </tr>
       `;
     }
@@ -68,8 +72,22 @@ ${data.message || JSON.stringify(data, null, 2)}
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="5"><strong>Total</strong></td>
-            <td><strong>${total.toFixed(2)}</strong></td>
+            <td colspan="5" style="
+              text-align:right;
+              padding:10px 14px;
+              border-top:2px solid #ccc;
+              font-weight:bold;
+            ">
+              Total
+            </td>
+            <td style="
+              text-align:right;
+              padding:10px 14px;
+              border-top:2px solid #ccc;
+              font-weight:bold;
+            ">
+              ${total.toFixed(2)}
+            </td>
           </tr>
         </tfoot>
       </table>
