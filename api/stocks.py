@@ -79,6 +79,7 @@ class handler(BaseHTTPRequestHandler):
 
             results.append({
                 "symbol": meta.get("symbol", sym),
+                "name": meta.get("shortName") or meta.get("longName"),
                 "price": meta.get("regularMarketPrice"),
                 "currency": meta.get("currency"),
                 "exchange": meta.get("exchangeName"),
