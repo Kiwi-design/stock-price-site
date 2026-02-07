@@ -26,10 +26,21 @@ form.addEventListener("submit", async (e) => {
   url.searchParams.set("password", password);
 
   try {
-    const res = await fetch(url.toString());
-    const text = await res.text();
 
-    output.textContent = `HTTP ${res.status}\n\n${text}`;
+  const res = await fetch(url.toString());
+  const data = await res.json();
+
+if (!res.ok || data.status !== "ok") {
+  output.textContent = `Error (${res.status}): ${data.message || JSON.stringify(data)}`;
+  return;
+}
+
+// Show only prices (one per line)
+output.textContent = data.results
+  .map(r => `${r.symbol}: ${r.price} ${r.currency}`)
+  .join("\n");
+
+    
   } catch (err) {
     output.textContent = `Fetch failed:\n${String(err)}`;
   }
