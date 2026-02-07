@@ -36,6 +36,7 @@ ${data.message || JSON.stringify(data, null, 2)}
             <th>Name</th>
             <th>Symbol</th>
             <th>Price</th>
+            <th>Currency</th>
             <th>Quantity</th>
             <th>Value</th>
           </tr>
@@ -55,9 +56,10 @@ ${data.message || JSON.stringify(data, null, 2)}
         <tr>
           <td>${r.name || ""}</td>
           <td>${r.symbol}</td>
-          <td>${price.toFixed(2)} ${ccy}</td>
+          <td>${price.toFixed(2)}</td>
+          <td>${ccy}</td>
           <td>${qty}</td>
-          <td>${value.toFixed(2)} ${ccy}</td>
+          <td>${value.toFixed(2)}</td>
         </tr>
       `;
     }
@@ -66,7 +68,7 @@ ${data.message || JSON.stringify(data, null, 2)}
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="4">Total</td>
+            <td colspan="5">Total</td>
             <td>${total.toFixed(2)}</td>
           </tr>
         </tfoot>
