@@ -60,12 +60,18 @@ class handler(BaseHTTPRequestHandler):
         for url in urls_to_try:
             try:
                 req = Request(
-                    url,
-                    headers={
-                        "Accept": "application/json",
-                        "User-Agent": "Mozilla/5.0 (compatible; vercel-proxy/1.0)",
-                    },
-                )
+    url,
+    headers={
+        "Accept": "application/json",
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        ),
+        "Accept-Language": "en-US,en;q=0.9",
+        "Connection": "keep-alive",
+    },
+)
                 with urlopen(req, timeout=15) as r:
                     data = json.loads(r.read().decode("utf-8"))
                 break
