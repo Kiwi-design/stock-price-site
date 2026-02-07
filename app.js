@@ -20,7 +20,7 @@ form.addEventListener("submit", async (e) => {
     const data = await res.json();
 
     if (!res.ok || data.status !== "ok") {
-      output.innerHTML = `<div class="error">
+      output.innerHTML = `<div style="color:red; white-space:pre-wrap;">
 Error (${res.status}):
 ${data.message || JSON.stringify(data, null, 2)}
 </div>`;
@@ -30,7 +30,7 @@ ${data.message || JSON.stringify(data, null, 2)}
     let total = 0;
 
     let html = `
-      <table>
+      <table border="1" cellpadding="6" cellspacing="0">
         <thead>
           <tr>
             <th>Name</th>
@@ -68,8 +68,8 @@ ${data.message || JSON.stringify(data, null, 2)}
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="5">Total</td>
-            <td>${total.toFixed(2)}</td>
+            <td colspan="5"><strong>Total</strong></td>
+            <td><strong>${total.toFixed(2)}</strong></td>
           </tr>
         </tfoot>
       </table>
@@ -78,7 +78,7 @@ ${data.message || JSON.stringify(data, null, 2)}
     output.innerHTML = html;
 
   } catch (err) {
-    output.innerHTML = `<div class="error">
+    output.innerHTML = `<div style="color:red; white-space:pre-wrap;">
 Fetch failed:
 ${String(err)}
 </div>`;
