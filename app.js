@@ -42,7 +42,7 @@ ${data.message || JSON.stringify(data, null, 2)}
             <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Price</th>
             <th style="text-align:left; padding:10px 14px; border-bottom:2px solid #ccc;">Currency</th>
             <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Quantity</th>
-            <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Value</th>
+            <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Value in ccy</th>
           </tr>
         </thead>
         <tbody>
