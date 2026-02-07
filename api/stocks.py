@@ -1,7 +1,8 @@
-YAHOO_CHART_BASES = [
-    "https://query1.finance.yahoo.com/v8/finance/chart/",
-    "https://query2.finance.yahoo.com/v8/finance/chart/",
-]
+from http.server import BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
+from urllib.request import Request, urlopen
+import json
+import os
 
 UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -9,60 +10,82 @@ UA = (
     "Chrome/120.0.0.0 Safari/537.36"
 )
 
-results = []
-errors = []
+YAHOO_BASES = [
+    "https://query1.finance.yahoo.com/v8/finance/chart/",
+    "https://query2.finance.yahoo.com/v8/finance/chart/",
+]
 
-for sym in symbols:
-    last_err = None
-    chart_json = None
+class handler(BaseHTTPRequestHandler):
+    def _send(self, status, obj):
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.end_headers()
+        self.wfile.write(json.dumps(obj).encode("utf-8"))
 
-    for base in YAHOO_CHART_BASES:
-        url = f"{base}{sym}?interval=1d&range=1d"
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
 
-        try:
-            req = Request(url, headers={"Accept": "application/json", "User-Agent": UA})
-            with urlopen(req, timeout=15) as r:
-                chart_json = json.loads(r.read().decode("utf-8"))
-            break
-        except Exception as e:
-            last_err = e
-            chart_json = None
+    def do_GET(self):
+        qs = parse_qs(urlparse(self.path).query)
 
-    if chart_json is None:
-        errors.append({"symbol": sym, "message": f"Yahoo chart failed: {type(last_err).__name__}: {last_err}"})
-        continue
+        # password check
+        if qs.get("password", [""])[0] != os.environ.get("APP_PASSWORD", ""):
+            self._send(401, {"status": "error", "message": "Unauthorized"})
+            return
 
-    # Parse v8 chart response
-    try:
-        chart = chart_json.get("chart", {})
-        err = chart.get("error")
-        if err:
-            errors.append({"symbol": sym, "message": f"Yahoo error: {err}"})
-            continue
+        symbols = os.environ.get("STOCK_SYMBOLS", "")
+        symbols = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+        if not symbols:
+            self._send(500, {"status": "error", "message": "STOCK_SYMBOLS empty"})
+            return
 
-        res0 = (chart.get("result") or [None])[0]
-        if not res0:
-            errors.append({"symbol": sym, "message": "Yahoo chart: missing result"})
-            continue
+        results = []
+        errors = []
 
-        meta = res0.get("meta", {})
-        price = meta.get("regularMarketPrice")
-        currency = meta.get("currency")
-        exch = meta.get("exchangeName") or meta.get("fullExchangeName")
-        name = meta.get("shortName") or meta.get("longName")
+        for sym in symbols:
+            data = None
+            last_err = None
 
-        results.append({
-            "symbol": meta.get("symbol", sym),
-            "name": name,
-            "exchange": exch,
-            "currency": currency,
-            "datetime": None,
-            "price": price,
-            "change": None,
-            "percent_change": None,
+            for base in YAHOO_BASES:
+                try:
+                    req = Request(
+                        f"{base}{sym}?interval=1d&range=1d",
+                        headers={"User-Agent": UA, "Accept": "application/json"},
+                    )
+                    with urlopen(req, timeout=10) as r:
+                        data = json.loads(r.read().decode("utf-8"))
+                    break
+                except Exception as e:
+                    last_err = e
+                    data = None
+
+            if not data:
+                errors.append({"symbol": sym, "message": str(last_err)})
+                continue
+
+            chart = data.get("chart", {})
+            if chart.get("error"):
+                errors.append({"symbol": sym, "message": chart["error"]})
+                continue
+
+            res = chart["result"][0]
+            meta = res["meta"]
+
+            results.append({
+                "symbol": meta.get("symbol", sym),
+                "price": meta.get("regularMarketPrice"),
+                "currency": meta.get("currency"),
+                "exchange": meta.get("exchangeName"),
+            })
+
+        self._send(200, {
+            "status": "ok",
+            "results": results,
+            "errors": errors,
         })
-
-    except Exception as e:
-        errors.append({"symbol": sym, "message": f"Parse failed: {type(e).__name__}: {e}"})
-
-self._send(200, {"status": "ok", "symbols": symbols, "results": results, "errors": errors})
