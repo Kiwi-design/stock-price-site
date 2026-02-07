@@ -37,7 +37,7 @@ if (!res.ok || data.status !== "ok") {
 
 // Show only prices (one per line)
 output.textContent = data.results
-  .map(r => `${r.symbol}: ${r.price} ${r.currency}`)
+  .map(r => `${r.name} (${r.symbol}): ${r.price} ${r.currency}`)
   .join("\n");
 
     
