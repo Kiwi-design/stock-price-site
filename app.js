@@ -32,7 +32,7 @@ ${data.message || JSON.stringify(data, null, 2)}
     let html = `
       <table style="
         border-collapse: collapse;
-        min-width: 700px;
+        min-width: 820px;
         font-family: Arial, sans-serif;
       ">
         <thead>
@@ -42,8 +42,8 @@ ${data.message || JSON.stringify(data, null, 2)}
             <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Price</th>
             <th style="text-align:left; padding:10px 14px; border-bottom:2px solid #ccc;">Currency</th>
             <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Quantity</th>
-            <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Value in ccy</th>
-            <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Value in EUR</th>
+            <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Value</th>
+            <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Value (EUR)</th>
           </tr>
         </thead>
         <tbody>
@@ -52,6 +52,7 @@ ${data.message || JSON.stringify(data, null, 2)}
     for (const r of data.results) {
       const price = r.price ?? 0;
       const qty = r.quantity ?? 0;
+      const value = r.value ?? 0;
       const value_eur = r.value_eur ?? 0;
       const ccy = r.currency ?? "";
 
@@ -61,11 +62,11 @@ ${data.message || JSON.stringify(data, null, 2)}
         <tr>
           <td style="text-align:left; padding:8px 14px;">${r.name || ""}</td>
           <td style="text-align:left; padding:8px 14px;">${r.symbol}</td>
-          <td style="text-align:right; padding:8px 14px;">${price.toFixed(2)}</td>
+          <td style="text-align:right; padding:8px 14px;">${Number(price).toFixed(2)}</td>
           <td style="text-align:left; padding:8px 14px;">${ccy}</td>
           <td style="text-align:right; padding:8px 14px;">${qty}</td>
-          <td style="text-align:right; padding:8px 14px;">${value.toFixed(2)}</td>
-          <td style="text-align:right; padding:8px 14px;">${r.value_eur !== null ? r.value_eur.toFixed(2) : ""}</td>
+          <td style="text-align:right; padding:8px 14px;">${Number(value).toFixed(2)}</td>
+          <td style="text-align:right; padding:8px 14px;">${Number(value_eur).toFixed(2)}</td>
         </tr>
       `;
     }
@@ -80,7 +81,7 @@ ${data.message || JSON.stringify(data, null, 2)}
               border-top:2px solid #ccc;
               font-weight:bold;
             ">
-              Total
+              Total (EUR)
             </td>
             <td style="
               text-align:right;
@@ -88,7 +89,7 @@ ${data.message || JSON.stringify(data, null, 2)}
               border-top:2px solid #ccc;
               font-weight:bold;
             ">
-              ${total_EUR.toFixed(2)}
+              ${total_eur.toFixed(2)}
             </td>
           </tr>
         </tfoot>
