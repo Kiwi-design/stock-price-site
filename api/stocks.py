@@ -1,131 +1,68 @@
-from http.server import BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs, urlencode
-from urllib.request import Request, urlopen
-from urllib.error import HTTPError, URLError
-import os
-import json
+YAHOO_CHART_BASES = [
+    "https://query1.finance.yahoo.com/v8/finance/chart/",
+    "https://query2.finance.yahoo.com/v8/finance/chart/",
+]
 
-YAHOO_QUOTE_V7 = "https://query2.finance.yahoo.com/v7/finance/quote"
-YAHOO_QUOTE_V6 = "https://query2.finance.yahoo.com/v6/finance/quote"  # fallback if v7 ever breaks :contentReference[oaicite:2]{index=2}
-
-def _json_bytes(obj) -> bytes:
-    return json.dumps(obj).encode("utf-8")
-
-class handler(BaseHTTPRequestHandler):
-    def _send(self, status: int, obj: dict):
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-        self.end_headers()
-        self.wfile.write(_json_bytes(obj))
-
-    def do_OPTIONS(self):
-        self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
-
-    def do_GET(self):
-        # --- Password check ---
-        app_pw = os.environ.get("APP_PASSWORD", "")
-        qs = parse_qs(urlparse(self.path).query)
-        provided = (qs.get("password", [""])[0] or "").strip()
-
-        if not app_pw:
-            self._send(500, {"status": "error", "message": "Server misconfigured: missing APP_PASSWORD"})
-            return
-        if provided != app_pw:
-            self._send(401, {"status": "error", "message": "Unauthorized"})
-            return
-
-        # --- Symbols list from env ---
-        symbols_env = os.environ.get("STOCK_SYMBOLS", "")
-        symbols = [s.strip().upper() for s in symbols_env.split(",") if s.strip()]
-        if not symbols:
-            self._send(500, {"status": "error", "message": "Server misconfigured: missing/empty STOCK_SYMBOLS"})
-            return
-
-        # Yahoo supports multiple symbols in one request :contentReference[oaicite:3]{index=3}
-        params = urlencode({"symbols": ",".join(symbols)})
-        urls_to_try = [
-            f"{YAHOO_QUOTE_V7}?{params}",
-            f"{YAHOO_QUOTE_V6}?{params}",  # fallback
-        ]
-
-        last_err = None
-        data = None
-
-        for url in urls_to_try:
-            try:
-                req = Request(
-    url,
-    headers={
-        "Accept": "application/json",
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
-        ),
-        "Accept-Language": "en-US,en;q=0.9",
-        "Connection": "keep-alive",
-    },
+UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36"
 )
-                with urlopen(req, timeout=15) as r:
-                    data = json.loads(r.read().decode("utf-8"))
-                break
-            except (HTTPError, URLError, json.JSONDecodeError) as e:
-                last_err = e
-                data = None
 
-        if data is None:
-            self._send(502, {"status": "error", "message": f"Yahoo upstream failed: {str(last_err)}"})
-            return
+results = []
+errors = []
 
-        # Parse Yahoo response structure
-        qr = (data.get("quoteResponse") or {})
-        results_raw = qr.get("result") or []
-        errors = qr.get("error")
+for sym in symbols:
+    last_err = None
+    chart_json = None
 
-        if errors:
-            self._send(502, {"status": "error", "message": f"Yahoo error: {errors}"})
-            return
+    for base in YAHOO_CHART_BASES:
+        url = f"{base}{sym}?interval=1d&range=1d"
 
-        # Map Yahoo fields -> your app fields
-        results = []
-        for item in results_raw:
-            # price: prefer regularMarketPrice
-            price = item.get("regularMarketPrice")
-            currency = item.get("currency")
-            symbol = item.get("symbol")
+        try:
+            req = Request(url, headers={"Accept": "application/json", "User-Agent": UA})
+            with urlopen(req, timeout=15) as r:
+                chart_json = json.loads(r.read().decode("utf-8"))
+            break
+        except Exception as e:
+            last_err = e
+            chart_json = None
 
-            # change fields
-            change = item.get("regularMarketChange")
-            pct = item.get("regularMarketChangePercent")
+    if chart_json is None:
+        errors.append({"symbol": sym, "message": f"Yahoo chart failed: {type(last_err).__name__}: {last_err}"})
+        continue
 
-            # nice labels
-            name = item.get("shortName") or item.get("longName")
-            exchange = item.get("fullExchangeName") or item.get("exchange")
+    # Parse v8 chart response
+    try:
+        chart = chart_json.get("chart", {})
+        err = chart.get("error")
+        if err:
+            errors.append({"symbol": sym, "message": f"Yahoo error: {err}"})
+            continue
 
-            results.append({
-                "symbol": symbol,
-                "name": name,
-                "exchange": exchange,
-                "currency": currency,
-                "datetime": None,              # Yahoo response doesn’t always include a clean datetime
-                "price": price,
-                "change": change,
-                "percent_change": pct,
-            })
+        res0 = (chart.get("result") or [None])[0]
+        if not res0:
+            errors.append({"symbol": sym, "message": "Yahoo chart: missing result"})
+            continue
 
-        # If some symbols didn’t come back, report them
-        returned = {r["symbol"] for r in results if r.get("symbol")}
-        missing = [s for s in symbols if s not in returned]
+        meta = res0.get("meta", {})
+        price = meta.get("regularMarketPrice")
+        currency = meta.get("currency")
+        exch = meta.get("exchangeName") or meta.get("fullExchangeName")
+        name = meta.get("shortName") or meta.get("longName")
 
-        self._send(200, {
-            "status": "ok",
-            "symbols": symbols,
-            "results": results,
-            "errors": [{"symbol": s, "message": "Not returned by Yahoo"} for s in missing],
+        results.append({
+            "symbol": meta.get("symbol", sym),
+            "name": name,
+            "exchange": exch,
+            "currency": currency,
+            "datetime": None,
+            "price": price,
+            "change": None,
+            "percent_change": None,
         })
+
+    except Exception as e:
+        errors.append({"symbol": sym, "message": f"Parse failed: {type(e).__name__}: {e}"})
+
+self._send(200, {"status": "ok", "symbols": symbols, "results": results, "errors": errors})
