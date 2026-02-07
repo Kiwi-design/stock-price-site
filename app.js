@@ -21,7 +21,9 @@ form.addEventListener("submit", async (e) => {
     }
 
     try {
-      output.textContent = JSON.stringify(JSON.parse(text), null, 2);
+      const data = JSON.parse(text);
+      const price = data.close ?? data.price;
+      output.textContent = `${data.symbol}: ${price} ${data.currency}`;
     } catch {
       output.textContent = `Non-JSON response:\n\n${text}\n\nURL:\n${url}`;
     }
