@@ -1,45 +1,52 @@
+from http.server import BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs, urlencode
+from urllib.request import Request, urlopen
 import os
-import json
-import urllib.parse
-import urllib.request
 
-def handler(request):
-    # Read API key from Vercel (secret)
-    api_key = os.environ.get("TWELVE_DATA_API_KEY")
+class handler(BaseHTTPRequestHandler):
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
 
-    if not api_key:
-        return {
-            "statusCode": 500,
-            "body": json.dumps({"error": "API key not configured"})
-        }
+    def do_GET(self):
+        api_key = os.environ.get("TWELVE_DATA_API_KEY")
+        if not api_key:
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(b'{"status":"error","message":"Missing TWELVE_DATA_API_KEY in Vercel env vars"}')
+            return
 
-    # Get stock symbol from the URL
-    symbol = request.query.get("symbol", "").upper()
+        qs = parse_qs(urlparse(self.path).query)
+        symbol = (qs.get("symbol", [""])[0] or "").strip().upper()
+        if not symbol:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(b'{"status":"error","message":"Missing ?symbol="}')
+            return
 
-    if not symbol:
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "Missing symbol"})
-        }
+        url = "https://api.twelvedata.com/quote?" + urlencode({"symbol": symbol, "apikey": api_key})
 
-    # Build Twelve Data request
-    params = urllib.parse.urlencode({
-        "symbol": symbol,
-        "apikey": api_key
-    })
+        try:
+            req = Request(url, headers={"Accept": "application/json"})
+            with urlopen(req, timeout=10) as r:
+                body = r.read()  # JSON bytes from Twelve Data
 
-    url = f"https://api.twelvedata.com/quote?{params}"
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body)
 
-    # Call Twelve Data
-    with urllib.request.urlopen(url) as response:
-        data = response.read().decode("utf-8")
-
-    # Send result back to browser
-    return {
-        "statusCode": 200,
-        "headers": {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*"
-        },
-        "body": data
-    }
+        except Exception:
+            self.send_response(502)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(b'{"status":"error","message":"Failed to reach Twelve Data"}')
