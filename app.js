@@ -1,4 +1,4 @@
-const API_BASE = "https://stock-price-site-plum.vercel.app/"; // change later
+const API_BASE = "https://stock-price-site.vercel.app"; // change later
 
 const form = document.getElementById("form");
 const output = document.getElementById("output");
