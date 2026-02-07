@@ -5,8 +5,8 @@ from urllib.error import HTTPError, URLError
 import os
 import json
 
-YAHOO_QUOTE_V7 = "https://query1.finance.yahoo.com/v7/finance/quote"
-YAHOO_QUOTE_V6 = "https://query1.finance.yahoo.com/v6/finance/quote"  # fallback if v7 ever breaks :contentReference[oaicite:2]{index=2}
+YAHOO_QUOTE_V7 = "https://query2.finance.yahoo.com/v7/finance/quote"
+YAHOO_QUOTE_V6 = "https://query2.finance.yahoo.com/v6/finance/quote"  # fallback if v7 ever breaks :contentReference[oaicite:2]{index=2}
 
 def _json_bytes(obj) -> bytes:
     return json.dumps(obj).encode("utf-8")
