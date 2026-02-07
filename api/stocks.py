@@ -113,6 +113,9 @@ class handler(BaseHTTPRequestHandler):
                 price = meta.get("regularMarketPrice")
                 ccy = meta.get("currency")
                 qty = qty_map.get(symbol_out, 0)
+                if ccy == "GBp":
+                    price = price / 100 if price is not None else None
+                    ccy = "GBP"
                 value = price * qty if price is not None else None
 
                 rate = fx_to_eur(ccy)
