@@ -45,6 +45,17 @@ class handler(BaseHTTPRequestHandler):
             self._send(500, {"status": "error", "message": "STOCK_SYMBOLS empty"})
             return
 
+        qty_env = os.environ.get("ASSET_QUANTITIES", "")
+        qty_map = {}
+
+        for pair in qty_env.split(","):
+            if "=" in pair:
+                k, v = pair.split("=", 1)
+                try:
+                    qty_map[k.strip().upper()] = float(v)
+                except ValueError:
+                    pass
+        
         results = []
         errors = []
 
@@ -76,11 +87,17 @@ class handler(BaseHTTPRequestHandler):
 
             res = chart["result"][0]
             meta = res["meta"]
+            
+            symbol_out = meta.get("symbol", sym)
+            price = meta.get("regularMarketPrice")
+            qty = qty_map.get(symbol_out, 0)
 
             results.append({
-                "symbol": meta.get("symbol", sym),
-                "name": meta.get("shortName") or meta.get("longName"),
-                "price": meta.get("regularMarketPrice"),
+               "symbol": symbol_out,
+               "name": meta.get("shortName") or meta.get("longName"),
+                "price": price,
+                "quantity": qty,
+                "value": (price * qty) if price is not None else None,
                 "currency": meta.get("currency"),
                 "exchange": meta.get("exchangeName"),
             })
