@@ -1,21 +1,31 @@
-const API_BASE = "https://stock-price-site-m72p.vercel.app"; // change later
+const API_BASE = "REPLACE_WITH_YOUR_VERCEL_URL"; // e.g. https://my-project.vercel.app
 
 const form = document.getElementById("form");
 const output = document.getElementById("output");
 
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
   const symbol = document.getElementById("symbol").value.trim().toUpperCase();
   output.textContent = "Loading...";
 
-  const url = `${API_BASE}/api/quote?symbol=${symbol}`;
+  const url = new URL(`${API_BASE}/api/quote`);
+  url.searchParams.set("symbol", symbol);
 
   try {
-    const response = await fetch(url);
-    const data = await response.json();
-    output.textContent = JSON.stringify(data, null, 2);
+    const res = await fetch(url.toString());
+    const text = await res.text();
+
+    if (!res.ok) {
+      output.textContent = `HTTP ${res.status}\n\n${text}\n\nURL:\n${url}`;
+      return;
+    }
+
+    try {
+      output.textContent = JSON.stringify(JSON.parse(text), null, 2);
+    } catch {
+      output.textContent = `Non-JSON response:\n\n${text}\n\nURL:\n${url}`;
+    }
   } catch (err) {
-    output.textContent = "Error fetching data";
+    output.textContent = `Fetch failed:\n${String(err)}\n\nURL:\n${url}`;
   }
 });
