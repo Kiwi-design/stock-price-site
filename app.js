@@ -27,7 +27,7 @@ ${data.message || JSON.stringify(data, null, 2)}
       return;
     }
 
-    let total = 0;
+    let total_eur = 0;
 
     let html = `
       <table style="
@@ -52,10 +52,10 @@ ${data.message || JSON.stringify(data, null, 2)}
     for (const r of data.results) {
       const price = r.price ?? 0;
       const qty = r.quantity ?? 0;
-      const value = r.value ?? 0;
+      const value_eur = r.value_eur ?? 0;
       const ccy = r.currency ?? "";
 
-      total += value;
+      total_eur += value_eur;
 
       html += `
         <tr>
@@ -88,7 +88,7 @@ ${data.message || JSON.stringify(data, null, 2)}
               border-top:2px solid #ccc;
               font-weight:bold;
             ">
-              ${total.toFixed(2)}
+              ${total_EUR.toFixed(2)}
             </td>
           </tr>
         </tfoot>
