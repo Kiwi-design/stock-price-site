@@ -5,6 +5,9 @@ from urllib.error import HTTPError, URLError
 import os
 import json
 
+YAHOO_QUOTE_V7 = "https://query1.finance.yahoo.com/v7/finance/quote"
+YAHOO_QUOTE_V6 = "https://query1.finance.yahoo.com/v6/finance/quote"  # fallback if v7 ever breaks :contentReference[oaicite:2]{index=2}
+
 def _json_bytes(obj) -> bytes:
     return json.dumps(obj).encode("utf-8")
 
@@ -33,67 +36,90 @@ class handler(BaseHTTPRequestHandler):
         if not app_pw:
             self._send(500, {"status": "error", "message": "Server misconfigured: missing APP_PASSWORD"})
             return
-
         if provided != app_pw:
             self._send(401, {"status": "error", "message": "Unauthorized"})
             return
 
         # --- Symbols list from env ---
         symbols_env = os.environ.get("STOCK_SYMBOLS", "")
-        if not symbols_env.strip():
-            self._send(500, {"status": "error", "message": "Server misconfigured: missing STOCK_SYMBOLS"})
-            return
-
         symbols = [s.strip().upper() for s in symbols_env.split(",") if s.strip()]
         if not symbols:
-            self._send(500, {"status": "error", "message": "STOCK_SYMBOLS is empty"})
+            self._send(500, {"status": "error", "message": "Server misconfigured: missing/empty STOCK_SYMBOLS"})
             return
 
-        api_key = os.environ.get("TWELVE_DATA_API_KEY", "")
-        if not api_key:
-            self._send(500, {"status": "error", "message": "Server misconfigured: missing TWELVE_DATA_API_KEY"})
-            return
+        # Yahoo supports multiple symbols in one request :contentReference[oaicite:3]{index=3}
+        params = urlencode({"symbols": ",".join(symbols)})
+        urls_to_try = [
+            f"{YAHOO_QUOTE_V7}?{params}",
+            f"{YAHOO_QUOTE_V6}?{params}",  # fallback
+        ]
 
-        # --- Fetch quotes one-by-one (simple + reliable) ---
-        results = []
-        errors = []
+        last_err = None
+        data = None
 
-        for sym in symbols:
-            url = "https://api.twelvedata.com/quote?" + urlencode({"symbol": sym, "apikey": api_key})
-
+        for url in urls_to_try:
             try:
-                req = Request(url, headers={"Accept": "application/json", "User-Agent": "vercel-stocks/1.0"})
+                req = Request(
+                    url,
+                    headers={
+                        "Accept": "application/json",
+                        "User-Agent": "Mozilla/5.0 (compatible; vercel-proxy/1.0)",
+                    },
+                )
                 with urlopen(req, timeout=15) as r:
                     data = json.loads(r.read().decode("utf-8"))
+                break
+            except (HTTPError, URLError, json.JSONDecodeError) as e:
+                last_err = e
+                data = None
 
-                # Twelve Data errors often come back as JSON with status=error
-                if isinstance(data, dict) and data.get("status") == "error":
-                    errors.append({"symbol": sym, "message": data.get("message", "Unknown error")})
-                    continue
+        if data is None:
+            self._send(502, {"status": "error", "message": f"Yahoo upstream failed: {str(last_err)}"})
+            return
 
-                price = data.get("close") or data.get("price")
-                results.append({
-                    "symbol": data.get("symbol", sym),
-                    "name": data.get("name"),
-                    "exchange": data.get("exchange"),
-                    "currency": data.get("currency"),
-                    "datetime": data.get("datetime"),
-                    "price": price,
-                    "change": data.get("change"),
-                    "percent_change": data.get("percent_change"),
-                })
+        # Parse Yahoo response structure
+        qr = (data.get("quoteResponse") or {})
+        results_raw = qr.get("result") or []
+        errors = qr.get("error")
 
-            except HTTPError as e:
-                try:
-                    body = e.read().decode("utf-8", errors="replace")
-                except Exception:
-                    body = ""
-                errors.append({"symbol": sym, "message": f"HTTPError {e.code}", "body": body[:300]})
+        if errors:
+            self._send(502, {"status": "error", "message": f"Yahoo error: {errors}"})
+            return
 
-            except URLError as e:
-                errors.append({"symbol": sym, "message": f"URLError: {getattr(e, 'reason', str(e))}"})
+        # Map Yahoo fields -> your app fields
+        results = []
+        for item in results_raw:
+            # price: prefer regularMarketPrice
+            price = item.get("regularMarketPrice")
+            currency = item.get("currency")
+            symbol = item.get("symbol")
 
-            except Exception as e:
-                errors.append({"symbol": sym, "message": f"Exception: {e.__class__.__name__}: {str(e)}"})
+            # change fields
+            change = item.get("regularMarketChange")
+            pct = item.get("regularMarketChangePercent")
 
-        self._send(200, {"status": "ok", "symbols": symbols, "results": results, "errors": errors})
+            # nice labels
+            name = item.get("shortName") or item.get("longName")
+            exchange = item.get("fullExchangeName") or item.get("exchange")
+
+            results.append({
+                "symbol": symbol,
+                "name": name,
+                "exchange": exchange,
+                "currency": currency,
+                "datetime": None,              # Yahoo response doesn’t always include a clean datetime
+                "price": price,
+                "change": change,
+                "percent_change": pct,
+            })
+
+        # If some symbols didn’t come back, report them
+        returned = {r["symbol"] for r in results if r.get("symbol")}
+        missing = [s for s in symbols if s not in returned]
+
+        self._send(200, {
+            "status": "ok",
+            "symbols": symbols,
+            "results": results,
+            "errors": [{"symbol": s, "message": "Not returned by Yahoo"} for s in missing],
+        })
