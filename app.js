@@ -43,6 +43,7 @@ ${data.message || JSON.stringify(data, null, 2)}
             <th style="text-align:left; padding:10px 14px; border-bottom:2px solid #ccc;">Currency</th>
             <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Quantity</th>
             <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Value in ccy</th>
+            <th style="text-align:right; padding:10px 14px; border-bottom:2px solid #ccc;">Value in EUR</th>
           </tr>
         </thead>
         <tbody>
@@ -64,6 +65,7 @@ ${data.message || JSON.stringify(data, null, 2)}
           <td style="text-align:left; padding:8px 14px;">${ccy}</td>
           <td style="text-align:right; padding:8px 14px;">${qty}</td>
           <td style="text-align:right; padding:8px 14px;">${value.toFixed(2)}</td>
+          <td style="text-align:right; padding:8px 14px;">${r.value_eur !== null ? r.value_eur.toFixed(2) : ""}</td>
         </tr>
       `;
     }
