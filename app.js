@@ -74,7 +74,7 @@ ${data.message || JSON.stringify(data, null, 2)}
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="5" style="
+            <td colspan="6" style="
               text-align:right;
               padding:10px 14px;
               border-top:2px solid #ccc;
